@@ -767,6 +767,44 @@ class CLIDemo:
         self.logger.log("gpt_response", input=command, output=reply, state=self._state_value())
         return True
 
+    def _read_command_with_sound(self):
+        prompt = self.get_prompt_text()
+        sys.stdout.write(prompt)
+        sys.stdout.flush()
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        buffer = []
+        try:
+            tty.setraw(fd)
+            while True:
+                ch = sys.stdin.read(1)
+                if not ch:
+                    continue
+                if ch in ("\r", "\n"):
+                    sys.stdout.write("\n")
+                    break
+                if ch in ("\x03",):
+                    raise KeyboardInterrupt
+                if ch in ("\x04",):
+                    raise EOFError
+                if ch in ("\x7f", "\b"):
+                    if buffer:
+                        buffer.pop()
+                        sys.stdout.write("\b \b")
+                        sys.stdout.flush()
+                    continue
+                if ch == "\x1b":
+                    # consume escape sequences (e.g., arrow keys)
+                    seq = sys.stdin.read(2)
+                    continue
+                buffer.append(ch)
+                self._play_keyboard_reminder()
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return "".join(buffer)
+
     def _verify_gpt_connection(self):
         responder = self.gpt_responder
         if not responder or not responder.enabled:
@@ -1128,7 +1166,7 @@ def main():
     try:
         while True:
             try:
-                line = input(demo.get_prompt_text())
+                line = demo._read_command_with_sound()
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
