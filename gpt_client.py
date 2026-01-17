@@ -91,6 +91,14 @@ class GPTResponder:
             self.logger.log("gpt_request_failed", reason="invalid_response")
         return None
 
+    def verify_connection(self) -> bool:
+        if not self.enabled:
+            return True
+        result = self.respond("ping", context="verification")
+        success = bool(result)
+        self.logger.log("gpt_verify", success=success)
+        return success
+
 
 class _NullLogger:
     def log(self, *args, **kwargs) -> None:

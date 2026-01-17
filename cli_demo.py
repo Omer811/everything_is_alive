@@ -619,6 +619,7 @@ class CLIDemo:
         self.await_personalization = False
         self.personalization_attempts = 0
         self.gpt_responder = GPTResponder(config.get("gpt", {}), logger=self.logger)
+        self._verify_gpt_connection()
         self.logger.log("initialized", state=self._state_value())
         self._apply_mouse_behavior(self._behavior_for_state(self.state))
 
@@ -763,7 +764,13 @@ class CLIDemo:
         self.log(reply, delay=self.response_delay)
         self.logger.log("gpt_response", input=command, output=reply, state=self._state_value())
         return True
-        return False
+
+    def _verify_gpt_connection(self):
+        responder = self.gpt_responder
+        if not responder or not responder.enabled:
+            return
+        if not responder.verify_connection():
+            raise RuntimeError("Unable to reach GPT responder; check your API key and network.")
 
     def stop(self):
         self.mouse_runner.stop()

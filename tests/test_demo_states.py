@@ -273,6 +273,9 @@ class CLIDemoTests(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 self.enabled = True
 
+            def verify_connection(self):
+                return True
+
             def respond(self, text, context=None):
                 return "keyboard and mouse remember every tremor."
 
@@ -285,6 +288,24 @@ class CLIDemoTests(unittest.TestCase):
             self.assertIn("keyboard and mouse remember", demo.peripherals.line_history[-1])
             events = [event for event, _ in logger.events]
             self.assertIn("gpt_response", events)
+        finally:
+            cli_demo.GPTResponder = original
+
+    def test_init_fails_when_gpt_unavailable(self):
+        config = copy.deepcopy(load_config())
+        config["gpt"]["enabled"] = True
+        class DummyResponder:
+            def __init__(self, *args, **kwargs):
+                self.enabled = True
+
+            def verify_connection(self):
+                return False
+
+        original = cli_demo.GPTResponder
+        try:
+            cli_demo.GPTResponder = DummyResponder
+            with self.assertRaises(RuntimeError):
+                CLIDemo(config)
         finally:
             cli_demo.GPTResponder = original
 
