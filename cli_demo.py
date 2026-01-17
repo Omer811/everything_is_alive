@@ -774,6 +774,8 @@ class CLIDemo:
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         buffer = []
+        history_nav = len(self.command_history)
+        prev_len = len(prompt)
         try:
             tty.setraw(fd)
             while True:
@@ -796,14 +798,37 @@ class CLIDemo:
                 if ch == "\x1b":
                     # consume escape sequences (e.g., arrow keys)
                     seq = sys.stdin.read(2)
+                    prev_len, history_nav = self._handle_escape_sequence(seq, prompt, buffer, prev_len, history_nav)
                     continue
                 buffer.append(ch)
                 self._play_keyboard_reminder()
                 sys.stdout.write(ch)
                 sys.stdout.flush()
+                prev_len = len(prompt) + len(buffer)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return "".join(buffer)
+
+    def _handle_escape_sequence(self, seq, prompt, buffer, prev_len, history_nav):
+        if seq == "[A":
+            history_nav = max(0, history_nav - 1)
+        elif seq == "[B":
+            history_nav = min(len(self.command_history), history_nav + 1)
+        else:
+            return prev_len, history_nav
+        if history_nav == len(self.command_history):
+            buffer.clear()
+        else:
+            buffer[:] = list(self.command_history[history_nav])
+        prev_len = self._redraw_input_line(prompt, buffer, prev_len)
+        return prev_len, history_nav
+
+    def _redraw_input_line(self, prompt, buffer, prev_len):
+        display = prompt + "".join(buffer)
+        sys.stdout.write("\r" + " " * max(prev_len, len(prompt)) + "\r")
+        sys.stdout.write(display)
+        sys.stdout.flush()
+        return len(display)
 
     def _verify_gpt_connection(self):
         responder = self.gpt_responder
