@@ -2,6 +2,7 @@ import copy
 import os
 import tempfile
 import unittest
+import io
 from unittest.mock import patch
 
 import cli_demo
@@ -343,6 +344,25 @@ class CLIDemoTests(unittest.TestCase):
         self.assertFalse(demo._afplay_procs)
         self.assertTrue(proc.killed)
         self.assertTrue(proc.wait_called)
+
+    def test_history_navigation_up_down(self):
+        config = copy.deepcopy(load_config())
+        config["quiet"] = True
+        demo = CLIDemo(config)
+        prompt = demo.get_prompt_text()
+        demo.command_history = ["./glove_init", "./glove_calibrate"]
+        buffer = []
+        prev_len = len(prompt)
+        history_nav = len(demo.command_history)
+        fake_out = io.StringIO()
+        with patch("cli_demo.sys.stdout", fake_out):
+            prev_len, history_nav = demo._handle_escape_sequence("[A", prompt, buffer, prev_len, history_nav)
+        self.assertEqual("".join(buffer), "./glove_calibrate")
+        self.assertEqual(history_nav, len(demo.command_history) - 1)
+        with patch("cli_demo.sys.stdout", fake_out):
+            prev_len2, history_nav = demo._handle_escape_sequence("[B", prompt, buffer, prev_len, history_nav)
+        self.assertEqual(buffer, [])
+        self.assertEqual(history_nav, len(demo.command_history))
 
 
     def test_default_mouse_behavior_keeps_running(self):
