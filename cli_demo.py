@@ -449,7 +449,7 @@ def load_config(path=CONFIG_FILE):
             "keyboard_reminder": "/System/Library/Sounds/Glass.aiff",
         },
         "gpt": {
-            "enabled": False,
+            "enabled": True,
             "model": "gpt-4o-mini",
             "key_file": "gpt_api_key.txt",
             "key_env": "OPENAI_API_KEY",
@@ -615,6 +615,7 @@ class CLIDemo:
         self.sounds = config.get("sounds", {})
         self._afplay = shutil.which("afplay")
         self.keyboard_sound = self.sounds.get("keyboard_reminder")
+        self._afplay_procs = []
         self.await_personalization = False
         self.personalization_attempts = 0
         self.gpt_responder = GPTResponder(config.get("gpt", {}), logger=self.logger)
@@ -762,16 +763,39 @@ class CLIDemo:
         self.log(reply, delay=self.response_delay)
         self.logger.log("gpt_response", input=command, output=reply, state=self._state_value())
         return True
+        return False
+
+    def stop(self):
+        self.mouse_runner.stop()
+        self._kill_afplay_procs()
 
     def _play_keyboard_reminder(self):
         path = self.keyboard_sound
         if path and self._afplay:
+            self._prune_afplay_procs()
             try:
-                subprocess.Popen([self._afplay, path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                proc = subprocess.Popen([self._afplay, path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                self._afplay_procs.append(proc)
                 return
             except Exception:
                 pass
         print("\a", end="", flush=True)
+
+    def _prune_afplay_procs(self):
+        alive = []
+        for proc in self._afplay_procs:
+            if proc.poll() is None:
+                alive.append(proc)
+        self._afplay_procs = alive
+
+    def _kill_afplay_procs(self):
+        for proc in self._afplay_procs:
+            try:
+                if proc.poll() is None:
+                    proc.kill()
+            except Exception:
+                pass
+        self._afplay_procs = []
 
     def _mutate_personalization_input(self, text):
         characters = list(text)
@@ -1089,7 +1113,7 @@ def main():
                 break
             demo.handle_command(line)
     finally:
-        demo.mouse_runner.stop()
+        demo.stop()
 
 
 if __name__ == "__main__":

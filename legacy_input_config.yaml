@@ -99,7 +99,7 @@ logging:
 sounds:
   keyboard_reminder: "/System/Library/Sounds/Glass.aiff"
 gpt:
-  enabled: false  # Toggle on when you have an API key in gpt_api_key.txt or OPENAI_API_KEY.
+  enabled: true  # Toggle on when you have an API key in gpt_api_key.txt or OPENAI_API_KEY.
   model: "gpt-4o-mini"
   key_file: "gpt_api_key.txt"
   key_env: "OPENAI_API_KEY"

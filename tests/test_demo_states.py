@@ -288,6 +288,33 @@ class CLIDemoTests(unittest.TestCase):
         finally:
             cli_demo.GPTResponder = original
 
+    def test_stop_kills_audio_processes(self):
+        config = copy.deepcopy(load_config())
+        config["timing"]["response_delay_ms"] = 0
+        config["quiet"] = True
+        config["sounds"] = {"keyboard_reminder": "/path/to/sound"}
+        demo = CLIDemo(config)
+        class DummyProc:
+            def __init__(self):
+                self.killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+        proc = DummyProc()
+        def fake_popen(*args, **kwargs):
+            return proc
+
+        with patch("cli_demo.subprocess.Popen", fake_popen):
+            demo._play_keyboard_reminder()
+        self.assertTrue(demo._afplay_procs)
+        demo.stop()
+        self.assertFalse(demo._afplay_procs)
+        self.assertTrue(proc.killed)
+
 
     def test_default_mouse_behavior_keeps_running(self):
         config = load_config()
