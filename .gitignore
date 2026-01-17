@@ -1,0 +1,5 @@
+__pycache__/
+legacy_input.log
+gpt_api_key.txt
+.DS_Store
+*.pyc

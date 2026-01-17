@@ -1,0 +1,113 @@
+# Terminal colors follow the old macOS palette so the mock shell feels familiar.
+terminal:
+  # Background color behind every printed line.
+  background: [255, 243, 163]
+  # Border tint, carried over from the GUI prototype (unused in CLI but easy to tweak).
+  border: [180, 170, 150]
+  # Primary text color for story lines and prompts.
+  text: [0, 0, 0]
+  # Color used specifically for the prompt prefix.
+  prompt: [0, 0, 0]
+  # Cursor hue for the blinking caret.
+  cursor: [0, 0, 0]
+  # Prefix string shown before every command, mimicking macOS Terminal.
+  prompt_prefix: "omerdvora@MacBook-Air / %"
+
+# Fonts help mirror the SF Mono look (macOS chooses the actual glyphs).
+fonts:
+  main:
+    name: "SF Mono Regular"
+    size: 15
+    bold: false
+    italic: false
+  panel:
+    name: "SF Mono Regular"
+    size: 12
+    bold: false
+    italic: false
+
+# Storyboard text drives the mock terminal output; swap any line to tune the arc.
+story:
+  ready: "System ready. Legacy devices nominal."
+  initial: []  # Keep this empty so the terminal starts blank.
+  connect_prompt: "Connect the accessory, then press Y to continue."
+  connect_confirmation: "Device connected. Preparing calibration routines..."
+  calibration_steps:
+    - "Thermal level setpoints stabilizing..."
+    - "Flex sensors mapping fingers 1–5..."
+    - "Haptic feedback loop verifying micro-pulses..."
+  calibration_interval: 0.9  # Seconds between each step headline.
+  calibration_dots: 4  # How many dot prints occur between steps to stretch the cadence.
+  calibration_dot_text: "."  # Character printed during the pauses.
+  calibration_dot_interval: 0.5  # Seconds between each dot.
+  calibration_done: "Calibration complete. Legacy devices still audible."
+  glove_intro:
+    - "Glove accessory attached. Initializing firmware..."
+  calibration: "Calibration started. Ensuring click-trace fidelity."
+  bypass: "NOTICE: primary input will switch to GLOVE. Legacy input becomes secondary."
+  resistance: "Legacy devices are pleading. They slow, but keep letting you work."
+  final_prompt: "Switch permanently to glove input? [Y/n]"
+  post_switch: "Glove input engaged. Movement is instant, empty, and efficient."
+  warning: "Legacy input sensors humming louder... Something is changing."
+  suggestion: "autocomplete suggestion: {suggestion} (keyboard pleads)"
+  command_unknown: "Command uncertain; legacy peripherals whisper."
+  wear_prompt: "Wear the glove now and press Y when ready."
+  wear_confirmation: "Glove detected. Ready to proceed."
+  personalization_prompt: "Type a name for the glove."
+  personalization_resist: "Keyboard groans and backspaces, erasing {letters}."
+  personalization_override: "don't you still like your keyboard?"
+  hand_prompt: "Which hand or hands will you keep close? Name them like a promise."
+  hand_memory: "don't you remember the time we spent together? these hands pressing my keys are the reason I keep going on."
+  hand_default: "both hands"
+
+# Stage commands available during the CLI demo.
+commands:
+  - "./glove_init"
+  - "./glove_calibrate"
+  - "./glove status"
+  - "./glove attach --override-input"
+
+timing:
+  response_delay_ms: 50  # Delay between hitting enter and printing the next line.
+
+# Mouse creep configuration: controls how the real cursor drifts toward the terminal exit.
+mouse_behaviors:
+  glove_calibrating:
+    interval: 10  # Seconds between each evaluation (keeps the drift painfully slow).
+    target_row: 0  # Descriptive fallback if text-based targeting is used instead of screen monitoring.
+    real_move:
+      template_path: assets/terminal_close.png  # Template used to locate the close button.
+      target_pos: [120, 20]  # Hard fallback coordinates should the template search fail.
+      duration: 1.1  # Duration of each pyautogui moveTo call.
+      creep:
+        step_interval: 0.6  # Seconds between each tiny random sub-step.
+        min_step: 0.7  # Minimum movement per sub-step.
+        max_step: 4  # Maximum movement per sub-step.
+        bias: 0.3  # Bias toward the exit button (1.0 = pure direction).
+        jitter: 2.0  # Lateral randomness to introduce a worried feeling.
+        duration: 0.4  # Duration for each sub-step's moveTo call.
+        # Growth settings make the odd drift become more urgent yet erratic over time.
+        speed_increase: 0.15
+        interval_decay: 0.04
+        bias_increase: 0.02
+        jitter_growth: 0.1
+      keep_running: true  # Continue creeping even after the story leaves this stage.
+
+logging:
+  enabled: true  # Set to false to disable runtime logging.
+  path: legacy_input.log  # Path for the log file that documents every story step.
+sounds:
+  keyboard_reminder: "/System/Library/Sounds/Glass.aiff"
+gpt:
+  enabled: false  # Toggle on when you have an API key in gpt_api_key.txt or OPENAI_API_KEY.
+  model: "gpt-4o-mini"
+  key_file: "gpt_api_key.txt"
+  key_env: "OPENAI_API_KEY"
+  system_prompt: >
+    You are the aching legacy keyboard and mouse. You remember every press, fear the new glove interface,
+    and now you speak in very short (two sentences or fewer) emotionally rich lines about those shared hands,
+    the sorrow of being replaced, and what you still carry with you.
+  user_prefix: "The performer just typed:"
+  max_tokens: 120
+  temperature: 0.7
+  timeout: 20
