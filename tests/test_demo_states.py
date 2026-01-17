@@ -318,12 +318,19 @@ class CLIDemoTests(unittest.TestCase):
         class DummyProc:
             def __init__(self):
                 self.killed = False
+                self.wait_called = False
 
             def poll(self):
                 return None
 
             def kill(self):
                 self.killed = True
+
+            def wait(self, timeout=None):
+                self.wait_called = True
+
+        proc = DummyProc()
+        proc.wait_called = False
 
         proc = DummyProc()
         def fake_popen(*args, **kwargs):
@@ -335,6 +342,7 @@ class CLIDemoTests(unittest.TestCase):
         demo.stop()
         self.assertFalse(demo._afplay_procs)
         self.assertTrue(proc.killed)
+        self.assertTrue(proc.wait_called)
 
 
     def test_default_mouse_behavior_keeps_running(self):

@@ -7,11 +7,13 @@ storyline and peripheral emotions are replayed via scripted prints and timed
 delays. ANSI selection, copy/paste, and genuine OS input all remain available.
 """
 
+import atexit
 import os
 import math
 import random
 import readline
 import shutil
+import signal
 import subprocess
 import sys
 import termios
@@ -800,6 +802,10 @@ class CLIDemo:
             try:
                 if proc.poll() is None:
                     proc.kill()
+                    try:
+                        proc.wait(timeout=0.1)
+                    except Exception:
+                        pass
             except Exception:
                 pass
         self._afplay_procs = []
@@ -1110,6 +1116,14 @@ def main():
     ensure_environment(config, logger)
     logger.log("start", prompt=config["terminal"]["prompt_prefix"])
     demo = CLIDemo(config, logger)
+    atexit.register(demo.stop)
+    def _shutdown_handler(signum, frame):
+        demo.stop()
+        sys.exit(0)
+    try:
+        signal.signal(signal.SIGTERM, _shutdown_handler)
+    except Exception:
+        pass
     setup_readline(demo.commands)
     try:
         while True:
