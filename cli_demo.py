@@ -481,7 +481,7 @@ def load_config(path=CONFIG_FILE):
             "personalization_prompt": "Type a name for the glove (it seems to hear every letter).",
             "personalization_resist": "Keyboard groans and backspaces, erasing {letters}.",
             "personalization_override": "don't you still like your keyboard?",
-            "personalization_complete": "The keyboard permits the glove to continue.",
+            "personalization_complete": "",
         },
         "commands": [
             "./glove_init",
