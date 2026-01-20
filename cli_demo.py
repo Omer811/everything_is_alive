@@ -796,8 +796,7 @@ class CLIDemo:
                         sys.stdout.flush()
                     continue
                 if ch == "\x1b":
-                    # consume escape sequences (e.g., arrow keys)
-                    seq = sys.stdin.read(2)
+                    seq = self._read_escape_sequence(fd)
                     prev_len, history_nav = self._handle_escape_sequence(seq, prompt, buffer, prev_len, history_nav)
                     continue
                 buffer.append(ch)
@@ -809,10 +808,24 @@ class CLIDemo:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return "".join(buffer)
 
+    def _read_escape_sequence(self, fd):
+        seq = ""
+        while True:
+            ch = sys.stdin.read(1)
+            if not ch:
+                break
+            seq += ch
+            if ch.isalpha() or ch == "~":
+                break
+        return seq
+
     def _handle_escape_sequence(self, seq, prompt, buffer, prev_len, history_nav):
-        if seq == "[A":
+        if not seq:
+            return prev_len, history_nav
+        final = seq[-1]
+        if final == "A":
             history_nav = max(0, history_nav - 1)
-        elif seq == "[B":
+        elif final == "B":
             history_nav = min(len(self.command_history), history_nav + 1)
         else:
             return prev_len, history_nav

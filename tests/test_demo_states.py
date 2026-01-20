@@ -364,6 +364,20 @@ class CLIDemoTests(unittest.TestCase):
         self.assertEqual(buffer, [])
         self.assertEqual(history_nav, len(demo.command_history))
 
+    def test_history_navigation_with_extended_sequence(self):
+        config = copy.deepcopy(load_config())
+        config["quiet"] = True
+        demo = CLIDemo(config)
+        prompt = demo.get_prompt_text()
+        demo.command_history = ["./glove_init", "./glove_calibrate"]
+        buffer = []
+        prev_len = len(prompt)
+        history_nav = len(demo.command_history)
+        fake_out = io.StringIO()
+        with patch("cli_demo.sys.stdout", fake_out):
+            prev_len, history_nav = demo._handle_escape_sequence("[1;5A", prompt, buffer, prev_len, history_nav)
+        self.assertEqual("".join(buffer), "./glove_calibrate")
+        self.assertEqual(history_nav, len(demo.command_history) - 1)
 
     def test_default_mouse_behavior_keeps_running(self):
         config = load_config()
