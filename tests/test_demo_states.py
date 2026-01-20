@@ -379,6 +379,19 @@ class CLIDemoTests(unittest.TestCase):
         self.assertEqual("".join(buffer), "./glove_calibrate")
         self.assertEqual(history_nav, len(demo.command_history) - 1)
 
+    def test_sound_input_only_during_personalization(self):
+        config = copy.deepcopy(load_config())
+        config["quiet"] = True
+        demo = CLIDemo(config)
+        self.assertFalse(demo.should_use_sound_input())
+        demo.await_personalization = True
+        self.assertTrue(demo.should_use_sound_input())
+        demo.await_personalization = False
+        demo.await_hand_selection = True
+        self.assertTrue(demo.should_use_sound_input())
+        demo.await_hand_selection = False
+        self.assertFalse(demo.should_use_sound_input())
+
     def test_default_mouse_behavior_keeps_running(self):
         config = load_config()
         behavior = config["mouse_behaviors"].get("glove_calibrating", {})

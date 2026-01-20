@@ -767,6 +767,9 @@ class CLIDemo:
         self.logger.log("gpt_response", input=command, output=reply, state=self._state_value())
         return True
 
+    def should_use_sound_input(self):
+        return self.await_personalization or self.await_hand_selection
+
     def _read_command_with_sound(self):
         prompt = self.get_prompt_text()
         sys.stdout.write(prompt)
@@ -1204,7 +1207,10 @@ def main():
     try:
         while True:
             try:
-                line = demo._read_command_with_sound()
+                if demo.should_use_sound_input():
+                    line = demo._read_command_with_sound()
+                else:
+                    line = input(demo.get_prompt_text())
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
