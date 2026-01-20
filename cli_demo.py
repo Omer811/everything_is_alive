@@ -763,7 +763,7 @@ class CLIDemo:
         reply = responder.respond(command, context=f"state={self._state_value()}")
         if not reply:
             return False
-        self.log(reply, delay=self.response_delay)
+        self._type_gpt_response(reply)
         self.logger.log("gpt_response", input=command, output=reply, state=self._state_value())
         return True
 
@@ -959,6 +959,19 @@ class CLIDemo:
         final_line = f"> {base_text}{extension_text}"
         self.peripherals.record_line(final_line)
         self.logger.log("keyboard_override", text=final_line, state=self._state_value())
+
+    def _type_gpt_response(self, text):
+        if not text:
+            return
+        for ch in text:
+            self._play_keyboard_reminder()
+            sys.stdout.write(ch)
+            sys.stdout.flush()
+            if self.response_delay:
+                time.sleep(self.response_delay)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        self.peripherals.record_line(text)
 
     def _start_personalization(self):
         self.await_personalization = True

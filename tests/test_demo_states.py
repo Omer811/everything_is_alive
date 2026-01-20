@@ -292,6 +292,19 @@ class CLIDemoTests(unittest.TestCase):
         finally:
             cli_demo.GPTResponder = original
 
+    def test_gpt_response_types_with_sound(self):
+        config = copy.deepcopy(load_config())
+        config["timing"]["response_delay_ms"] = 0
+        config["quiet"] = True
+        logger = LoggingRecorder()
+        demo = CLIDemo(config, logger=logger)
+        response = "farewell"
+        sounds = []
+        demo._play_keyboard_reminder = lambda: sounds.append("tick")
+        demo._type_gpt_response(response)
+        self.assertEqual(demo.peripherals.line_history[-1], response)
+        self.assertEqual(len(sounds), len(response))
+
     def test_init_fails_when_gpt_unavailable(self):
         config = copy.deepcopy(load_config())
         config["gpt"]["enabled"] = True
