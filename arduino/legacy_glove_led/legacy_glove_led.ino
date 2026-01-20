@@ -134,3 +134,4 @@ void updateLed() {
       digitalWrite(ledPin, LOW);
       break;
   }
+}
