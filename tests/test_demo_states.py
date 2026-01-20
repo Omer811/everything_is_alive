@@ -323,6 +323,43 @@ class CLIDemoTests(unittest.TestCase):
         finally:
             cli_demo.GPTResponder = original
 
+    def test_arduino_stage_signaling(self):
+        config = copy.deepcopy(load_config())
+        config["quiet"] = True
+        config["arduino"]["enabled"] = True
+        calls = []
+
+        class DummyArduino:
+            def __init__(self, *args, **kwargs):
+                self.calls = calls
+
+            def send_stage(self, stage, step=None):
+                self.calls.append((stage, step))
+                return True
+
+            def close(self):
+                pass
+
+        original_arduino = cli_demo.ArduinoLedController
+        try:
+            cli_demo.ArduinoLedController = lambda *args, **kwargs: DummyArduino()
+            with patch("cli_demo.time.sleep", lambda *args, **kwargs: None):
+                with patch.object(CLIDemo, "_capture_personalization_input", lambda self: ""):
+                    demo = CLIDemo(config)
+                    demo._start_personalization()
+                self.assertIn(("INIT", None), calls)
+                calls.clear()
+                demo.start_connection_sequence()
+                self.assertIn(("CALIBRATE", 0), calls)
+                calls.clear()
+                demo.confirm_connection()
+                self.assertTrue(any(stage == "CALIBRATE" and step == 1 for stage, step in calls))
+                calls.clear()
+                demo.transition(State.POST_SWITCH)
+                self.assertIn(("FINISH", None), calls)
+        finally:
+            cli_demo.ArduinoLedController = original_arduino
+
     def test_stop_kills_audio_processes(self):
         config = copy.deepcopy(load_config())
         config["timing"]["response_delay_ms"] = 0

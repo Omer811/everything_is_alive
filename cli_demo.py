@@ -26,6 +26,11 @@ import yaml
 from gpt_client import GPTResponder
 
 try:
+    import serial
+except ImportError:
+    serial = None
+
+try:
     import pyautogui
 except ImportError:
     pyautogui = None
@@ -379,6 +384,57 @@ class NullLogger:
         return
 
 
+class ArduinoLedController:
+    def __init__(self, config=None, logger=None):
+        config = config or {}
+        self.logger = logger or NullLogger()
+        self.enabled = bool(config.get("enabled"))
+        self.port = config.get("port")
+        self.baud = int(config.get("baud", 9600))
+        self.timeout = float(config.get("timeout", 1.0))
+        self.connection = None
+        if not self.enabled:
+            return
+        if not serial:
+            self.logger.log("arduino_disabled", reason="pyserial_missing")
+            self.enabled = False
+            return
+        if not self.port:
+            self.logger.log("arduino_disabled", reason="port_missing")
+            self.enabled = False
+            return
+        try:
+            self.connection = serial.Serial(self.port, baudrate=self.baud, timeout=self.timeout)
+            time.sleep(2)
+            self.logger.log("arduino_connected", port=self.port, baud=self.baud)
+        except Exception as exc:
+            self.logger.log("arduino_error", reason=str(exc))
+            self.enabled = False
+
+    def send_stage(self, stage, step=None):
+        if not self.enabled or not self.connection:
+            return False
+        if stage == "CALIBRATE" and step is not None:
+            command = f"STAGE:{stage}:STEP={step}"
+        else:
+            command = f"STAGE:{stage}"
+        try:
+            self.connection.write((command + "\n").encode("utf-8"))
+            self.connection.flush()
+            self.logger.log("arduino_stage", stage=stage, step=step, command=command)
+            return True
+        except Exception as exc:
+            self.logger.log("arduino_error", stage=stage, reason=str(exc))
+            return False
+
+    def close(self):
+        if not self.connection:
+            return
+        try:
+            self.connection.close()
+        except Exception:
+            pass
+        self.connection = None
 def load_config(path=CONFIG_FILE):
     defaults = {
         "terminal": {
@@ -465,6 +521,12 @@ def load_config(path=CONFIG_FILE):
             "temperature": 0.7,
             "timeout": 20,
         },
+        "arduino": {
+            "enabled": False,
+            "port": "/dev/tty.usbmodem14601",
+            "baud": 9600,
+            "timeout": 1.0,
+        },
     }
     if not os.path.exists(path):
         return defaults
@@ -528,6 +590,10 @@ def load_config(path=CONFIG_FILE):
     if "gpt" in data:
         gpt_data = data["gpt"] or {}
         gpt.update({k: v for k, v in gpt_data.items() if v is not None})
+    arduino = defaults.get("arduino", {}).copy()
+    if "arduino" in data:
+        arduino_data = data["arduino"] or {}
+        arduino.update({k: v for k, v in arduino_data.items() if v is not None})
     return {
         "terminal": terminal,
         "fonts": font_defaults,
@@ -538,6 +604,7 @@ def load_config(path=CONFIG_FILE):
         "logging": logging_config,
         "sounds": sounds,
         "gpt": gpt,
+        "arduino": arduino,
     }
 
 
@@ -613,6 +680,7 @@ class CLIDemo:
         self.real_mouse = RealMouseMover()
         self.logger = logger or NullLogger()
         self.mouse_runner = MouseCreepRunner(self.real_mouse, self.logger)
+        self.arduino_controller = ArduinoLedController(config.get("arduino", {}), logger=self.logger)
         self.active_mouse_behavior = None
         self.sounds = config.get("sounds", {})
         self._afplay = shutil.which("afplay")
@@ -856,6 +924,7 @@ class CLIDemo:
     def stop(self):
         self.mouse_runner.stop()
         self._kill_afplay_procs()
+        self.arduino_controller.close()
 
     def _play_keyboard_reminder(self):
         path = self.keyboard_sound
@@ -979,6 +1048,7 @@ class CLIDemo:
         prompt = self.story.get("personalization_prompt", "Tell the glove your new name.")
         self.log(prompt, delay=self.response_delay)
         self.logger.log("personalization_start", state=self._state_value())
+        self.arduino_controller.send_stage("INIT")
         name = self._capture_personalization_input()
         self._handle_personalization(name)
 
@@ -1047,6 +1117,7 @@ class CLIDemo:
         self.await_connection = True
         self.log_story("connect_prompt")
         self.logger.log("connection_request", state=self._state_value())
+        self.arduino_controller.send_stage("CALIBRATE", 0)
 
     def confirm_connection(self):
         self.await_connection = False
@@ -1057,7 +1128,8 @@ class CLIDemo:
         dots = self.story.get("calibration_dots", 3)
         dot_text = self.story.get("calibration_dot_text", ".")
         dot_interval = self.story.get("calibration_dot_interval", 0.5)
-        for step in steps:
+        for idx, step in enumerate(steps, start=1):
+            self.arduino_controller.send_stage("CALIBRATE", idx)
             self.log(step, delay=self.response_delay)
             self.logger.log("calibration_step", step=step, state=self._state_value())
             time.sleep(interval)
@@ -1114,6 +1186,7 @@ class CLIDemo:
             self.log_story("resistance")
         elif new_state == State.POST_SWITCH:
             self.log_story("post_switch")
+            self.arduino_controller.send_stage("FINISH")
 
     def handle_command(self, raw):
         stripped = raw.strip()
